@@ -73,124 +73,6 @@ def getcm(n, cmap):
     
     return colors
 
-def plot(item, colors=['#343E3D', '#FF5252', '#FFCE54', '#38E4AE', '#51B9FF', '#FB91FF'], Emin=-100000, Emax=100000, b=None, scan=1, sep=',', tech='cv'):
-    """
-    Reads an {item}.txt file filtered by {scan} column and outputs {peak_o, peak_r, ioveri, dEp}
-    Different conditions based on {tech} = 'cv' or 'swv'
-    if b           = 'b' then blank is considered on analysis
-    Emax and Emin  = potential ranges for peak detection
-    """
-    
-    # Read data for Cyclic Voltammetry analysis
-    if tech == 'cv':
-    
-        df = pd.read_csv(f'{item}-a.txt', sep=sep)
-        
-        if 'Scan' in df.columns:
-        
-            df = df[df['Scan'] == scan]
-        
-        E = df['WE(1).Potential (V)']
-        i = df['WE(1).Current (A)']*1e6
-        i_f = i
-          
-        if b is not None:
-            
-            df_b = pd.read_csv(f"{item}-b.txt", sep=sep)
-            
-            if 'Scan' in df_b.columns:
-            
-                df_b = df_b[df_b['Scan'] == scan]
-                
-            i_b = df_b['WE(1).Current (A)']*1e6
-            i_f = i - i_b
-            
-    # Read data for Squared Wave Voltammetry analysis
-    
-    elif tech == 'swv':
-        
-        df = pd.read_csv(f'{item}-a.txt', sep=sep)
-        
-        if 'Scan' in df.columns:
-        
-            df = df[df['Scan'] == scan]
-        
-        E = df['Potential applied (V)']
-        i = df['WE(1).δ.Current (A)']*1e6
-        i_f = i
-          
-        if b is not None:
-            
-            df_b = pd.read_csv(f'{item}-b.txt', sep=sep)
-            
-            if 'Scan' in df_b.columns:
-            
-                df_b = df_b[df_b['Scan'] == scan]
-                
-            i_b = df_b['WE(1).δ.Current (A)']*1e6
-            i_f = i - i_b
-            
-    # Calculate pertinent data analysis
-           
-    peak_o = i_f[E < Emax][E > Emin].max()
-    peak_r = i_f[E < Emax][E > Emin].min()
-    ioveri = abs(peak_o/peak_r)
-    
-    E_o = E[i_f[E < Emax][E > Emin].idxmax()]
-    E_r = E[i_f[E < Emax][E > Emin].idxmin()]
-    dEp = abs(E_o-E_r)
-    
-    # First figure (0) of the full voltammogram
-    
-    plt.figure(0)
-    
-    plt.plot(E, i_f, color=colors[item], label=f'{item}', alpha=.7)
-    
-    plt.xlabel('E / V vs Ag/AgCl')
-    plt.ylabel('I / $\mu$A')
-    # plt.title('')
-    # plt.ylim(-210,140)
-    plt.legend(fontsize=10, frameon=False)
-    
-    # plt.savefig('20230808.png', dpi=200, bbox_inches='tight')
-    
-    # If blank is pertinent: figure (1) of the blank
-    
-    if b is not None:
-    
-        plt.figure(1)
-        
-        plt.plot(E, i_b, color=colors[item], label=f'{item}-branco', alpha=.7)
-        
-        plt.xlabel('E / V vs Ag/AgCl')
-        plt.ylabel('I / $\mu$A')
-        # plt.title('')
-        # plt.ylim(-210,140)
-        plt.legend(fontsize=10, frameon=False)
-        
-        # plt.savefig('02082023-b.png', dpi=200, bbox_inches='tight')
-    plt.figure(2)
-    
-    print('PEAKPEAK')
-    print(E_o)
-    print('-'*90)
-    print(peak_o)
-    print('-'*90)
-    peaks, _ = find_peaks(i_f, prominence=1)
-    print(peaks)
-    print('-'*90)
-    
-    plt.plot(E, i_f, color=colors[item], label=f'{item}', alpha=1)
-    plt.axvline(x=E[peaks[0]], linewidth=2, color='red')
-    
-    ### plt.axvline(x=E_r, ymin=peak_r-0.5*peak_r, ymax=peak_r+0.5*peak_r,) ###
-    
-    plt.xlabel('E / V vs Ag/AgCl')
-    plt.ylabel('I / $\mu$A')
-    plt.title('peak detection')
-    
-    return peak_o, peak_r, ioveri, dEp
-
 def plot(item, colors=['#343E3D', '#FF5252', '#FFCE54', '#38E4AE', '#51B9FF', '#FB91FF'], b=None, scan=1, sep=',', tech='cv', specialpotential=None, specialcurrent=None):
     """
     Reads an {item}.txt file filtered by {scan} column and outputs {peak_o, peak_r, ioveri, dEp}
@@ -247,12 +129,19 @@ def plot(item, colors=['#343E3D', '#FF5252', '#FFCE54', '#38E4AE', '#51B9FF', '#
     peak_x = [ E[item] for item in peak_indices ]
     peak_y = [ i_f[item] for item in peak_indices ]
     
+    data = [peak_x, peak_y]
+    
+    print('Potenciais de pico:  ', peak_x)
+    print('Correntes de pico:  ', peak_y)
+    
     if len(peak_indices) != 1:
     
         ioveri = abs(peak_y[0]/peak_y[1])
         E_o = peak_x[0]
         E_r = peak_x[1]
         dEp = abs(E_o-E_r)
+        
+        data = [peak_x, peak_y, dEp, ioveri]
     
     # First figure (0) of the full voltammogram
     
@@ -265,6 +154,7 @@ def plot(item, colors=['#343E3D', '#FF5252', '#FFCE54', '#38E4AE', '#51B9FF', '#
     # plt.title('')
     # plt.ylim(-210,140)
     plt.legend(fontsize=10, frameon=False)
+    plt.show()
     
     # plt.savefig('20230808.png', dpi=200, bbox_inches='tight')
     
@@ -281,6 +171,7 @@ def plot(item, colors=['#343E3D', '#FF5252', '#FFCE54', '#38E4AE', '#51B9FF', '#
         # plt.title('')
         # plt.ylim(-210,140)
         plt.legend(fontsize=10, frameon=False)
+        plt.show()
         
         # plt.savefig('02082023-b.png', dpi=200, bbox_inches='tight')
     plt.figure(2)
@@ -291,107 +182,109 @@ def plot(item, colors=['#343E3D', '#FF5252', '#FFCE54', '#38E4AE', '#51B9FF', '#
     plt.xlabel('E / V vs Ag/AgCl')
     plt.ylabel('I / $\mu$A')
     plt.title('peak detection')
+    plt.show()
     
-    return E, i
+    return 
 
 
 #%%
-def peaks(reps, cmap, Emin=-100000, Emax=100000, b=None, scan=1, sep=',', tech='cv'):
+def peaks(items, cmap, colors=['#343E3D', '#FF5252', '#FFCE54', '#38E4AE', '#51B9FF', '#FB91FF'], b=None, scan=1, sep=',', tech='cv', specialpotential=None, specialcurrent=None, reps=0):
     """
     Runs a loop of plots() functions and prints the results accordingly
     colors         = use getcm() to determine colors
     """
-    
-    colors = getcm(reps, cmap)
-    
+    if items > 6:
+        colors = getcm(items, cmap)
+
     t = stats.t.ppf(1-0.025, reps-1)
     
     if b is not None:
         
-        peaks = np.array( [plot(item, colors=colors, Emin=Emin, Emax=Emax, tech=tech, sep=sep, scan=scan, b='b') for item in np.arange(0,reps)] ).T
+        peaks = np.array( [plot(item, colors=colors, b='b', scan=scan, sep=sep, tech=tech, specialpotential=specialpotential, specialcurrent=specialcurrent ) for item in np.arange(0,reps)] ).T
     
     else: 
         
-        peaks = np.array( [plot(item, colors=colors, Emin=Emin, Emax=Emax, tech=tech, sep=sep, scan=scan) for item in np.arange(0,reps)] ).T
+        peaks = np.array( [plot(item, colors=colors, b=None, scan=scan, sep=sep, tech=tech, specialpotential=specialpotential, specialcurrent=specialcurrent ) for item in np.arange(0,reps)] ).T
     
-    anodic = peaks[0]
-    
-    mean_a = anodic.mean()
-    std_a = anodic.std(ddof=1)
-    ci_a = std_a*t/(reps**(0.5))
-    err_a = round(ci_a/mean_a*100, 0)
-    
-    print('PEAK ANODIC CURRENTS:')
-    print('-'*40)
-    print('Array with all peaks: ')
-    print(anodic)
-    print('Mean = ', mean_a)
-    print('Std = ', std_a)
-    print('CI = ', mean_a, '+-', ci_a)
-    print('Error = ', err_a, '%')
-    
-    cathodic = peaks[1]
-    
-    mean_c = cathodic.mean()
-    std_c = cathodic.std(ddof=1)
-    ci_c = std_c*t/(reps**(0.5))
-    err_c = round(ci_c/mean_c*100, 0)
-    
-    print('-'*40)
-    print('PEAK CATHODIC CURRENTS:')
-    print('-'*40)
-    print('Array with all peaks: ')
-    print(cathodic)
-    print('Mean = ', mean_c)
-    print('Std = ', std_c)
-    print('CI = ', mean_c, '+-', ci_c)
-    print('Error = ', err_c, '%')
-    
-    ioveri = peaks[2]
-    
-    mean_ioveri = ioveri.mean()
-    std_ioveri = ioveri.std(ddof=1)
-    ci_ioveri = std_ioveri*t/(reps**(0.5))
-    err_ioveri = round(ci_ioveri/mean_ioveri*100, 0)
-    
-    print('-'*40)
-    print('ANODIC/CATHODIC CURRENT RATIO:')
-    print('-'*40)
-    print('Array with all peaks: ')
-    print(ioveri)
-    print('Mean = ', mean_ioveri)
-    print('Std = ', std_ioveri)
-    print('CI = ', mean_ioveri, '+-', ci_ioveri)
-    print('Error = ', err_ioveri, '%')
-    
-    dEp = peaks[3]
-    
-    mean_dEp = dEp.mean()
-    std_dEp = dEp.std(ddof=1)
-    ci_dEp = std_dEp*t/(reps**(0.5))
-    err_dEp = round(ci_dEp/mean_dEp*100, 0)
-    
-    print('-'*40)
-    print('ANODIC/CATHODIC CURRENT RATIO:')
-    print('-'*40)
-    print('Array with all peaks: ')
-    print(dEp)
-    print('Mean = ', mean_dEp)
-    print('Std = ', std_dEp)
-    print('CI = ', mean_dEp, '+-', ci_dEp)
-    print('Error = ', err_dEp, '%')
-    
-    print('='*50)
-    print('='*50)
-    print('SUMMARY:')
-            
-    print('i_a:     ', round(mean_a, 4), '+-', round(ci_a, 4), 'uA', f"        ({err_a})%")
-    print('i_c:     ', round(mean_c, 4), '+-', round(ci_c, 4), 'uA', f"        ({err_c})%")
-    print('i_a/i_c: ', round(mean_ioveri, 4), '+-', round(ci_ioveri, 4), f"        ({err_ioveri})%")
-    print('dEp:     ', round(mean_dEp,4), '+-', round(ci_dEp, 4), 'V', f"        ({err_dEp})%")
-    
-    print('='*50)
-    print('='*50)
+    if reps > 0:
+        
+        anodic = peaks[0]
+        cathodic = peaks[1]
+        
+        mean_a = anodic.mean()
+        std_a = anodic.std(ddof=1)
+        ci_a = std_a*t/(reps**(0.5))
+        err_a = round(ci_a/mean_a*100, 0)
+        
+        print('PEAK ANODIC CURRENTS:')
+        print('-'*40)
+        print('Array with all peaks: ')
+        print(anodic)
+        print('Mean = ', mean_a)
+        print('Std = ', std_a)
+        print('CI = ', mean_a, '+-', ci_a)
+        print('Error = ', err_a, '%')
+        
+        mean_c = cathodic.mean()
+        std_c = cathodic.std(ddof=1)
+        ci_c = std_c*t/(reps**(0.5))
+        err_c = round(ci_c/mean_c*100, 0)
+        
+        print('-'*40)
+        print('PEAK CATHODIC CURRENTS:')
+        print('-'*40)
+        print('Array with all peaks: ')
+        print(cathodic)
+        print('Mean = ', mean_c)
+        print('Std = ', std_c)
+        print('CI = ', mean_c, '+-', ci_c)
+        print('Error = ', err_c, '%')
+        
+        ioveri = peaks[2]
+        
+        mean_ioveri = ioveri.mean()
+        std_ioveri = ioveri.std(ddof=1)
+        ci_ioveri = std_ioveri*t/(reps**(0.5))
+        err_ioveri = round(ci_ioveri/mean_ioveri*100, 0)
+        
+        print('-'*40)
+        print('ANODIC/CATHODIC CURRENT RATIO:')
+        print('-'*40)
+        print('Array with all peaks: ')
+        print(ioveri)
+        print('Mean = ', mean_ioveri)
+        print('Std = ', std_ioveri)
+        print('CI = ', mean_ioveri, '+-', ci_ioveri)
+        print('Error = ', err_ioveri, '%')
+        
+        dEp = peaks[3]
+        
+        mean_dEp = dEp.mean()
+        std_dEp = dEp.std(ddof=1)
+        ci_dEp = std_dEp*t/(reps**(0.5))
+        err_dEp = round(ci_dEp/mean_dEp*100, 0)
+        
+        print('-'*40)
+        print('ANODIC/CATHODIC CURRENT RATIO:')
+        print('-'*40)
+        print('Array with all peaks: ')
+        print(dEp)
+        print('Mean = ', mean_dEp)
+        print('Std = ', std_dEp)
+        print('CI = ', mean_dEp, '+-', ci_dEp)
+        print('Error = ', err_dEp, '%')
+        
+        print('='*50)
+        print('='*50)
+        print('SUMMARY:')
+                
+        print('i_a:     ', round(mean_a, 4), '+-', round(ci_a, 4), 'uA', f"        ({err_a})%")
+        print('i_c:     ', round(mean_c, 4), '+-', round(ci_c, 4), 'uA', f"        ({err_c})%")
+        print('i_a/i_c: ', round(mean_ioveri, 4), '+-', round(ci_ioveri, 4), f"        ({err_ioveri})%")
+        print('dEp:     ', round(mean_dEp,4), '+-', round(ci_dEp, 4), 'V', f"        ({err_dEp})%")
+        
+        print('='*50)
+        print('='*50)
     
     return peaks
 
